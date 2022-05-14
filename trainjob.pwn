@@ -15,6 +15,7 @@ enum trainColumns
     playerStation,
     nextStation,
     passengers,
+    bool:inTrainStation,
     PlayerText:trainJobTD
 };
 new trainJob[MAX_PLAYERS][trainColumns];
@@ -33,6 +34,7 @@ CMD:trainjob(playerid, params[])
     if(GetPlayerVirtualWorld(playerid) != 0) return SendClientMessage(playerid, 0xFF0000FF, "[ERROR] {ffffff}You must be in freeroam mode (/leave) and outside house (/exit) to enter trainjob");
 
     //configure player
+    trainJob[playerid][inTrainStation] = true;
     trainJob[playerid][inTrainJob] = true;
     trainJob[playerid][playerStation] = random(5);
     SetPlayerVirtualWorld(playerid, 1);
@@ -41,16 +43,14 @@ CMD:trainjob(playerid, params[])
     trainJob[playerid][trainID] = AddStaticVehicle(538, trainJobStation[temp][0], trainJobStation[temp][1], trainJobStation[temp][2], 0.0, 3, 0);
     SetVehicleVirtualWorld(trainJob[playerid][trainID], 1);
     PutPlayerInVehicle(playerid, trainJob[playerid][trainID], 0);
-    trainJob[playerid][nextStation] = temp;
 
     //messages
     new string[144], playername[25];
     GetPlayerName(playerid, playername, 25);
     format(string, 144, "[Server]:{F27D0C} Player %s(%d) Has joined to Train minigame, Use /trainjob to join! And /leave to leave!", playername, playerid);
     SendClientMessageToAll(0xFF0000FF, string);
-    SendClientMessage(playerid, 0xff0000ff, "[Train Job] {ffffff}Train job started.");
     SendClientMessage(playerid, 0xff0000ff, "[Train Job] {ffffff}You'll recieve 1 score and $1000 for each passanger who disembark. {00ff00}[Minimun: 10 score and $10k]");
-    SendClientMessage(playerid, 0xff0000ff, "[Train Job] {ffffff}You need to reach checkpoint SLOWER than 20km/h {00ff00}(/speedometer is recomended){ffffff}.");
+    SendClientMessage(playerid, 0xff0000ff, "[Train Job] {ffffff}Don't forget to {ff0000}STOP {ffffff} in stations.");
 
     loadNextTrainJob(playerid);
     PlayerTextDrawShow(playerid, trainJob[playerid][trainJobTD]);
@@ -66,34 +66,26 @@ CMD:leave(playerid, params[])
     return 1;
 }
 
-public OnPlayerEnterCheckpoint(playerid)
+playerReachedStation(playerid)
 {
-    if(trainJob[playerid][inTrainJob])
-    {
-        //check speed
-        new Float:vx, Float:vy, Float:vz;
-        GetVehicleVelocity(trainJob[playerid][trainID], vx, vy, vz);
-        new Float:speed = floatsqroot(vx*vx + vy*vy + vz*vz)*181.5;
-        if(speed > 20.0) return 1;
-        
-        //passengers
-        TogglePlayerControllable(playerid, 0);
-        DisablePlayerCheckpoint(playerid);
-        GameTextForPlayer(playerid, "~u~~r~!PLEASE WAIT!~u~", 5000, 3);
-        defer setPassengers(playerid);
-
-    }
+    trainJob[playerid][inTrainStation] = true;
+    TogglePlayerControllable(playerid, 0);
+    DisablePlayerCheckpoint(playerid);
+    GameTextForPlayer(playerid, "~u~~r~!PLEASE WAIT!~u~", 5000, 3);
+    defer setPassengers(playerid);
 
     return 1;
 }
 
 loadNextTrainJob(playerid)
 {
-    trainJob[playerid][playerStation] = trainJob[playerid][nextStation];
     new temp = trainJob[playerid][playerStation]+1;
     if(temp >= 5) temp = 0;
  
     SetPlayerCheckpoint(playerid, trainJobStation[temp][0], trainJobStation[temp][1], trainJobStation[temp][2], 5.0);
+    trainJob[playerid][nextStation] = temp;
+    trainJob[playerid][inTrainStation] = false;
+    trainJob[playerid][playerStation] = trainJob[playerid][nextStation];
     trainJob[playerid][nextStation] = temp;
 
     return 1;
@@ -122,7 +114,7 @@ timer setPassengers[5000](playerid)
     else scorePrize = disembarking;
     moneyPrize = scorePrize*1000;
 
-    format(string, 144, "[Train Job] {00ff00}%d {ffffff} boarding {ff0000}| {00ff00}%d {ffffff}disembarking {ff0000}| {ffffff}Prize: {00ff00}%d {ffffff scores and {00ff00}$%d{ffffff}.", boarding, disembarking, scorePrize, moneyPrize);
+    format(string, 144, "[Train Job] {00ff00}%d {ffffff}boarding - {00ff00}%d {ffffff}disembarking {ff0000}| {00ff00}%d {ffffff}scores and {00ff00}$%d{ffffff}.", boarding, disembarking, scorePrize, moneyPrize);
     SendClientMessage(playerid, 0xFF0000FF, string);
 
     GivePlayerMoney(playerid, moneyPrize);
@@ -165,6 +157,10 @@ task trainJobUpdate[100]()
         else if(distance <= 100.0 && distance > 20.0 && speed > 20.0) HUDmessage = "~r~~h~~h~slow down!";
         else if(distance >= 20.0 && speed <= 20.0) HUDmessage = "~y~~h~keep speed";
         else HUDmessage = "~r~~h~STOP!";
+        
+        if(distance<20.0 && speed <=1.0 && !trainJob[playerid][inTrainStation])
+            playerReachedStation(playerid);
+
         if(distance >= 1000.0)
             format(string, sizeof(string), "~w~Distance:~n~~g~~h~~h~%.2fkm~n~~w~Passengers:~n~~g~~h~~h~%d~w~/~g~~h~~h~%d", distance/1000, trainJob[playerid][passengers], TRAIN_CAPACITY);
         else
