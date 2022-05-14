@@ -44,8 +44,12 @@ CMD:trainjob(playerid, params[])
     trainJob[playerid][nextStation] = temp;
 
     //messages
+    new string[144], playername[25];
+    GetPlayerName(playerid, playername, 25);
+    format(string, 144, "[Server]:{F27D0C} Player %s(%d) Has joined to Train minigame, Use /trainjob to join! And /leave to leave!", playername, playerid);
+    SendClientMessageToAll(0xFF0000FF, string);
     SendClientMessage(playerid, 0xff0000ff, "[Train Job] {ffffff}Train job started.");
-    SendClientMessage(playerid, 0xff0000ff, "[Train Job] {ffffff}You'll recieve 1 score and $1000 for each passanger who disembark.");
+    SendClientMessage(playerid, 0xff0000ff, "[Train Job] {ffffff}You'll recieve 1 score and $1000 for each passanger who disembark. {00ff00}[Minimun: 10 score and $10k]");
     SendClientMessage(playerid, 0xff0000ff, "[Train Job] {ffffff}You need to reach checkpoint SLOWER than 20km/h {00ff00}(/speedometer is recomended){ffffff}.");
 
     loadNextTrainJob(playerid);
@@ -114,26 +118,17 @@ timer setPassengers[5000](playerid)
     trainJob[playerid][passengers] += boarding;
 
     //prize
-    if(disembarking < 10)
-    {
-        scorePrize = 10;
-        moneyPrize = 10000;
-        format(string, 144, "[Train Job]{ffffff} %d passengers disembarked {ff0000}| Payment: {ffff00}10 {ffffff}score and {ffff00}$10000{ffffff}. {00ff00}[MINIMUN PAYMENT]", disembarking);
-    }
-    else
-    {
-        scorePrize = disembarking;
-        moneyPrize = scorePrize*1000;
-        format(string, 144, "[Train Job]{ffffff} %d passengers disembarked {ff0000}| Payment: {ffff00}%d {ffffff}score and {ffff00}$%d{ffffff}.", disembarking, scorePrize, moneyPrize);
-    }
+    if(disembarking < 10) scorePrize = 10;
+    else scorePrize = disembarking;
+    moneyPrize = scorePrize*1000;
+
+    format(string, 144, "[Train Job] {00ff00}%d {ffffff} boarding {ff0000}| {00ff00}%d {ffffff}disembarking {ff0000}| {ffffff}Prize: {00ff00}%d {ffffff scores and {00ff00}$%d{ffffff}.", boarding, disembarking, scorePrize, moneyPrize);
     SendClientMessage(playerid, 0xFF0000FF, string);
+
     GivePlayerMoney(playerid, moneyPrize);
     SetPlayerScore(playerid, GetPlayerScore(playerid)+scorePrize);
 
-    //temp
-    format(string, 144, "boarding: %d --- disembarking: %d", boarding, disembarking);
-    SendClientMessage(playerid, 0xff0000ff, string);
-
+    //configure next
     loadNextTrainJob(playerid);
     TogglePlayerControllable(playerid, 1);
 
