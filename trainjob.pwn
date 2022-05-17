@@ -36,6 +36,11 @@ CMD:trainjob(playerid, params[])
 {
     //errors
     if(GetPlayerVirtualWorld(playerid) != 0) return SendClientMessage(playerid, 0xFF0000FF, "[ERROR] {ffffff}You must be in freeroam mode (/leave) and outside house (/exit) to enter trainjob");
+    if(trainJob[playerid][inTrainJob]) return SendClientMessage(playerid, 0xFF0000FF, "[ERROR] {ffffff}You are already in train minigame!");
+
+    //train color and camera
+    new trainCamera, trainColor;
+    setTrainColorCamera(params, trainCamera, trainColor);
 
     //configure player
     trainJob[playerid][inTrainStation] = true;
@@ -43,10 +48,12 @@ CMD:trainjob(playerid, params[])
     trainJob[playerid][playerStation] = random(5);
     new temp = trainJob[playerid][playerStation]; //just to make next line smaller
     SetPlayerPos(playerid, trainJobStation[temp][0], trainJobStation[temp][1], trainJobStation[temp][2]);
-    trainJob[playerid][trainID] = AddStaticVehicle(538, trainJobStation[temp][0], trainJobStation[temp][1], trainJobStation[temp][2], 0.0, 3, 0);
+    trainJob[playerid][trainID] = AddStaticVehicle(538, trainJobStation[temp][0], trainJobStation[temp][1], trainJobStation[temp][2], 0.0, trainColor, 0);
     //SetVehicleVirtualWorld(trainJob[playerid][trainID], 1);
     //SetPlayerVirtualWorld(playerid, 1);
     PutPlayerInVehicle(playerid, trainJob[playerid][trainID], 0);
+    if(trainCamera)
+        SetCameraBehindPlayer(playerid);
 
     //messages
     new string[144], playername[25];
@@ -176,6 +183,29 @@ task trainJobUpdate[200]()
         PlayerTextDrawSetString(playerid, trainJob[playerid][trainJobTD] , string);
     }   
 
+    return 1;
+}
+
+setTrainColorCamera(params[], &trainCamera, &trainColor)
+{
+    if(!strlen(params))
+    {
+        trainColor = 3;
+        return 1;   
+    }
+    trainCamera = strval(params);
+    strdel(params, 0, 1);
+    if(!strlen(params))
+    {
+        trainColor = 3;
+        return 1;
+    }
+    trainColor = strval(params);
+    if(trainColor < -1 || trainColor > 255)
+    {
+        trainColor = 3;
+        return 1;
+    }
     return 1;
 }
 
