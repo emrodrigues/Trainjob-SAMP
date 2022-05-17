@@ -1,7 +1,11 @@
+//commented lines about actors are temporary abandoned features, you can finish or delete them
+
 #include <a_samp>
 #include <zcmd>
-#include <YSI/y_timers>
-#include <YSI/y_foreach>
+#include <YSI_Coding\y_timers>
+#include <YSI_Data\y_iterate>
+//#include ".\trainjobNPCs.pwn"
+//#include <a_actor>
 
 #undef MAX_PLAYERS
 #define MAX_PLAYERS 30
@@ -19,7 +23,7 @@ enum trainColumns
     PlayerText:trainJobTD
 };
 new trainJob[MAX_PLAYERS][trainColumns];
-new Float:trainJobStation[][] = 
+new const Float:trainJobStation[][] = 
 {
     {-1944.559082, 100.086662, 25.718618},  //SF station
     {846.438354, -1395.998046, -1.601390},  //LS station 1
@@ -37,18 +41,18 @@ CMD:trainjob(playerid, params[])
     trainJob[playerid][inTrainStation] = true;
     trainJob[playerid][inTrainJob] = true;
     trainJob[playerid][playerStation] = random(5);
-    SetPlayerVirtualWorld(playerid, 1);
     new temp = trainJob[playerid][playerStation]; //just to make next line smaller
     SetPlayerPos(playerid, trainJobStation[temp][0], trainJobStation[temp][1], trainJobStation[temp][2]);
     trainJob[playerid][trainID] = AddStaticVehicle(538, trainJobStation[temp][0], trainJobStation[temp][1], trainJobStation[temp][2], 0.0, 3, 0);
-    SetVehicleVirtualWorld(trainJob[playerid][trainID], 1);
+    //SetVehicleVirtualWorld(trainJob[playerid][trainID], 1);
+    //SetPlayerVirtualWorld(playerid, 1);
     PutPlayerInVehicle(playerid, trainJob[playerid][trainID], 0);
 
     //messages
     new string[144], playername[25];
     GetPlayerName(playerid, playername, 25);
     format(string, 144, "[Server]:{F27D0C} Player %s(%d) Has joined to Train minigame, Use /trainjob to join! And /leave to leave!", playername, playerid);
-    SendClientMessageToAll(0xFF0000FF, string);
+    SendClientMessageToAll(0x38FF06FF, string);
     SendClientMessage(playerid, 0xff0000ff, "[Train Job] {ffffff}You'll recieve 1 score and $1000 for each passanger who disembark. {00ff00}[Minimun: 10 score and $10k]");
     SendClientMessage(playerid, 0xff0000ff, "[Train Job] {ffffff}Don't forget to {ff0000}STOP {ffffff} in stations.");
 
@@ -61,7 +65,7 @@ CMD:trainjob(playerid, params[])
 CMD:leave(playerid, params[])
 {
     if(trainJob[playerid][inTrainJob])
-        exitTrainJob(playerid);
+        exitTrainJob(playerid);        
 
     return 1;
 }
@@ -71,7 +75,7 @@ playerReachedStation(playerid)
     trainJob[playerid][inTrainStation] = true;
     TogglePlayerControllable(playerid, 0);
     DisablePlayerCheckpoint(playerid);
-    GameTextForPlayer(playerid, "~u~~r~!PLEASE WAIT!~u~", 5000, 3);
+    GameTextForPlayer(playerid, "~u~~r~!PLEASE WAIT!~u~", 15000, 3);
     defer setPassengers(playerid);
 
     return 1;
@@ -91,7 +95,7 @@ loadNextTrainJob(playerid)
     return 1;
 }
 
-timer setPassengers[5000](playerid)
+timer setPassengers[10000](playerid)
 {
     new string[144];
     new disembarking, boarding, moneyPrize, scorePrize;
@@ -116,6 +120,7 @@ timer setPassengers[5000](playerid)
 
     format(string, 144, "[Train Job] {00ff00}%d {ffffff}boarding - {00ff00}%d {ffffff}disembarking {ff0000}| {00ff00}%d {ffffff}scores and {00ff00}$%d{ffffff}.", boarding, disembarking, scorePrize, moneyPrize);
     SendClientMessage(playerid, 0xFF0000FF, string);
+    GameTextForPlayer(playerid, "~d~~g~!GO GO GO!~d~", 5000, 3);
 
     GivePlayerMoney(playerid, moneyPrize);
     SetPlayerScore(playerid, GetPlayerScore(playerid)+scorePrize);
@@ -140,11 +145,13 @@ loadTJtextDraw(playerid)
     return 1;
 }
 
-task trainJobUpdate[100]()
+task trainJobUpdate[200]()
 {
     foreach(new playerid: Player)
     {
-        if(!IsPlayerConnected(playerid) || !trainJob[playerid][inTrainJob]) continue;
+        if(!trainJob[playerid][inTrainJob]) continue;
+        if(GetPlayerVehicleID(playerid) != trainJob[playerid][trainID])
+            return exitTrainJob(playerid);
 
         new string[128], Float:distance, Float: speed, Float:cp_x, Float:cp_y, Float:cp_z, temp;
         new HUDmessage[25];
@@ -174,11 +181,18 @@ task trainJobUpdate[100]()
 
 exitTrainJob(playerid)
 {
+    new string[144], playername[25];
+    GetPlayerName(playerid, playername, 25);
+    format(string, 144, "[Server]:{F27D0C} Player %s(%d) Has Left From Train minigame, Use /trainjob to join! And /leave to leave!", playername, playerid);
+    SendClientMessageToAll(0x38FF06FF, string);
     DestroyVehicle(trainJob[playerid][trainID]);
     DisablePlayerCheckpoint(playerid);
     SetPlayerVirtualWorld(playerid, 0);
     PlayerTextDrawHide(playerid, trainJob[playerid][trainJobTD]);
+    SetCameraBehindPlayer(playerid);
     resetTrainJob(playerid);
+
+    return 1;
 }
 
 resetTrainJob(playerid)
@@ -187,6 +201,7 @@ resetTrainJob(playerid)
     trainJob[playerid][playerStation] = -1;
     trainJob[playerid][nextStation] = -1;
     trainJob[playerid][passengers] = 0;
+    DisablePlayerCheckpoint(playerid);
 
     return 1;
 }
@@ -195,6 +210,8 @@ public OnFilterScriptInit()
 {    
     foreach(new playerid: Player)
         loadTJtextDraw(playerid);
+
+    //seksTest();
 
     return 1;
 }
@@ -224,3 +241,74 @@ public OnPlayerDisconnect(playerid, reason)
     
     return 1;
 }
+
+//debug
+/*CMD:pos(playerid, params[])
+{
+    new string[144], Float:x, Float:y, Float:z, Float:a;
+    GetPlayerPos(playerid, x, y, z);
+    GetPlayerFacingAngle(playerid, a);
+    format(string, 144, "%f, %f, %f, %f     %s", x, y, z, a, params);
+    SendClientMessage(playerid, 0xffff00ff, string);
+    return 1;
+}*/
+
+/*seksTest()    //NPCS TEMPORARY CANCELED
+{
+    for(new i; i<3; i++)
+    {
+        for(new j; j<11; j++)
+        {
+            CreateActor(0, TJnpcsPos[i][j][0], TJnpcsPos[i][j][1], TJnpcsPos[i][j][2], TJnpcsPos[i][j][3]);
+        }
+    }
+
+    return 1;
+}*/
+
+/* === NPC Locations ===
+    station 0 (SF station)
+        main NPC -1952.800292, 99.222808, 26.281250, 339.76
+        station NPC
+            1 - -1956.623535, 131.779388, 27.687500, 270.0
+            2 - -1956.623535, 129.779388, 27.687500, 270.0
+            3 - -1956.623535, 127.779388, 27.687500, 270.0
+            4 - -1956.623535, 125.779388, 27.687500, 270.0
+            5 - -1956.623535, 123.779388, 27.687500, 270.0
+        train npc
+            1 - -1945.635498, 141.592041, 25.710937, 87.0
+            2 - -1945.635498, 139.592041, 25.710937, 87.0
+            3 - -1945.635498, 137.592041, 25.710937, 87.0
+            4 - -1945.635498, 135.592041, 25.710937, 87.0
+            5 - -1945.635498, 133.592041, 25.710937, 87.0
+
+    station 1 (LS1)
+        main NPC 851.675720, -1389.742553, -0.501461, 78.321121
+        station NPC
+            1 - 846.416015, -1382.068115, -0.501461, 142.5
+            2 - 845.070495, -1380.966308, -0.501461, 139.5
+            3 - 843.528991, -1379.784545, -0.501461, 140.5
+            4 - 842.505981, -1378.473999, -0.501461, 140.0
+            5 - 841.129211, -1377.316040, -0.501461, 132.0
+        train NPC
+            1 - 834.567871, -1385.248901, -1.640484, 314.0
+            2 - 837.591125, -1387.966308, -1.632545, 316.0
+            3 - 832.258483, -1382.946044, -1.646853, 317.5
+            4 - 840.183410, -1390.277587, -1.617948, 320.8
+            5 - 821.621154, -1372.786376, -1.675589, 324.3
+
+    station 2 (LS2)
+        main NPC 1783.993041, -1949.261352, 14.078763, 135.189468
+        station NPC
+            1 - 1746.876464, -1948.799316, 14.117187, 180.0
+            2 - 1744.876464, -1948.799316, 14.117187, 180.0
+            3 - 1742.876464, -1948.799316, 14.117187, 180.0
+            4 - 1740.876464, -1948.799316, 14.117187, 180.0
+            5 - 1738.876464, -1948.799316, 14.117187, 180.0
+        train NPC
+            1 - 1744.014892, -1954.377685, 13.546875, 0.0
+            2 - 1742.014892, -1954.377685, 13.546875, 0.0
+            3 - 1740.014892, -1954.377685, 13.546875, 0.0
+            4 - 1738.014892, -1954.377685, 13.546875, 0.0
+            5 - 1736.014892, -1954.377685, 13.546875, 0.0
+*/
