@@ -44,7 +44,6 @@ CMD:trainjob(playerid, params[])
 
     //configure player
     trainJob[playerid][inTrainStation] = true;
-    trainJob[playerid][inTrainJob] = true;
     trainJob[playerid][playerStation] = random(5);
     new temp = trainJob[playerid][playerStation]; //just to make next line smaller
     SetPlayerPos(playerid, trainJobStation[temp][0], trainJobStation[temp][1], trainJobStation[temp][2]);
@@ -156,6 +155,8 @@ task trainJobUpdate[200]()
 {
     foreach(new playerid: Player)
     {
+        if(GetPlayerVehicleID(playerid) == trainjob[playerid][trainID])
+            trainJob[playerid][inTrainJob] = true;
         if(!trainJob[playerid][inTrainJob]) continue;
         if(GetPlayerVehicleID(playerid) != trainJob[playerid][trainID])
             return exitTrainJob(playerid);
@@ -231,6 +232,7 @@ resetTrainJob(playerid)
     trainJob[playerid][playerStation] = -1;
     trainJob[playerid][nextStation] = -1;
     trainJob[playerid][passengers] = 0;
+    trainJob[playerid][trainID] = -2;
     DisablePlayerCheckpoint(playerid);
 
     return 1;
